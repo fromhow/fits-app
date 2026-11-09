@@ -38,7 +38,11 @@ textarea{width:100%;min-height:110px;border:1px solid var(--line);background:var
 .price{display:inline-block;margin-top:6px;background:var(--accent);color:#fff;font-weight:800;padding:2px 8px;transform:rotate(-1.5deg)}
 .why{font-size:12.5px;color:var(--muted);margin-top:6px;min-height:34px}
 .store{font-size:12px;margin-top:4px}.store a{color:var(--muted)}
-.btns{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:10px 12px 12px}
+.btns{display:grid;grid-template-columns:1fr 1fr 44px;gap:6px;padding:10px 12px 12px}
+.edited{display:inline-block;font-size:11px;color:var(--accent);margin-left:6px}
+.tedit{border:0;background:transparent;font-size:22px;vertical-align:middle;margin-left:6px;color:var(--muted)}
+.f{margin-top:12px}.f span{display:block;font-size:13px;color:var(--muted);margin-bottom:4px}
+.f input{width:100%;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:12px;padding:12px;font:inherit}
 .btns button{border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:10px;padding:9px 0;font-family:inherit;font-weight:600;font-size:14px}
 .item.ok .b-ok{background:var(--ok);color:#fff;border-color:var(--ok)}
 .item.no .b-no{background:var(--no);color:#fff;border-color:var(--no)}
@@ -79,10 +83,10 @@ textarea{width:100%;min-height:110px;border:1px solid var(--line);background:var
 
 <!-- review -->
 <section class="screen" id="review">
-  <h1 id="rvTitle"></h1><div class="sub" id="rvSub"></div>
+  <h1><span id="rvTitle"></span><button class="tedit" onclick="openTitle()">✏️</button></h1><div class="sub" id="rvSub"></div>
   <div class="count" id="rvCount"></div>
   <div id="cats"></div>
-  <div class="bar"><button class="ghost" onclick="openEdit()">Редактировать</button><button class="solid" onclick="cont()">Продолжить →</button></div>
+  <div class="bar"><button class="ghost" onclick="openEdit()">💬 Правки</button><button class="solid" onclick="cont()">Продолжить →</button></div>
 </section>
 
 <div class="sheet" id="edit" onclick="if(event.target===this)this.classList.remove('on')"><div>
@@ -91,11 +95,27 @@ textarea{width:100%;min-height:110px;border:1px solid var(--line);background:var
   <button class="main solid" onclick="sendEdit()">Отправить правки</button>
 </div></div>
 
+<div class="sheet" id="itemSheet" onclick="if(event.target===this)this.classList.remove('on')"><div>
+  <h1 style="font-size:22px">Изменить вещь</h1><div class="sub">так будет написано на слайде</div>
+  <label class="f"><span>Бренд</span><input id="fb"></label>
+  <label class="f"><span>Название</span><input id="fn"></label>
+  <label class="f"><span>Цена</span><input id="fp"></label>
+  <label class="f"><span>Магазин</span><input id="fs"></label>
+  <label class="f"><span>Ссылка</span><input id="fu" inputmode="url"></label>
+  <button class="main solid" onclick="saveItem()">Сохранить</button>
+</div></div>
+<div class="sheet" id="titleSheet" onclick="if(event.target===this)this.classList.remove('on')"><div>
+  <h1 style="font-size:22px">Заголовок ролика</h1>
+  <label class="f"><span>Заголовок</span><input id="ft"></label>
+  <label class="f"><span>Подзаголовок</span><input id="fsub"></label>
+  <button class="main solid" onclick="saveTitle()">Сохранить</button>
+</div></div>
+
 <script>
 const tg = window.Telegram && Telegram.WebApp;
 if (tg) { tg.ready(); tg.expand(); document.documentElement.dataset.theme = tg.colorScheme; }
 const CAT = {headwear:'Шапки',scarf:'Шарфы',top:'Верх',outerwear:'Куртки',bottoms:'Низ',footwear:'Обувь',bag:'Сумки',accessory:'Аксессуары'};
-let data = null, choice = {};
+let data = null, choice = {}, edits = {}, titleEdit = null, editing = null;
 
 function decode(h){ try{ const b=h.replace(/-/g,'+').replace(/_/g,'/'); return JSON.parse(decodeURIComponent(escape(atob(b)))); }catch(e){ return null; } }
 function show(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('on',s.id===id)); window.scrollTo(0,0); }
@@ -123,16 +143,32 @@ function renderReview(){
     <div class="cat"><h2>${esc(CAT[c]||c)}<small>${items.length} на выбор</small></h2><div class="row">
     ${items.map(it=>`<div class="item" id="i_${esc(it.id)}">
       <div class="ph">${it.img?`<img src="${esc(it.img)}" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('span'),{textContent:'фото по ссылке'}))">`:'<span>фото по ссылке</span>'}</div>
-      <div class="meta"><div class="brand">${esc(it.b)}</div><div class="name">${esc(it.n)}</div>
+      <div class="meta"><div class="brand">${esc(it.b)}${edits[it.id]?'<span class="edited">изменено</span>':''}</div><div class="name">${esc(it.n)}</div>
       <span class="price">${esc(it.p)}</span><div class="why">${esc(it.w)}</div>
       <div class="store">${it.u?`<a href="${esc(it.u)}" onclick="tg&&tg.openLink(this.href);return !tg">${esc(it.s)} ↗</a>`:esc(it.s)}</div></div>
-      <div class="btns"><button class="b-ok" onclick="mark('${esc(it.id)}','a')">✓ Беру</button><button class="b-no" onclick="mark('${esc(it.id)}','r')">✕ Нет</button></div>
+      <div class="btns"><button class="b-ok" onclick="mark('${esc(it.id)}','a')">✓ Беру</button><button class="b-no" onclick="mark('${esc(it.id)}','r')">✕ Нет</button><button onclick="openItem('${esc(it.id)}')">✏️</button></div>
     </div>`).join('')}</div></div>`).join('');
   count();
 }
 function mark(id,v){ choice[id]=choice[id]===v?undefined:v; const el=document.getElementById('i_'+id); el.classList.toggle('ok',choice[id]==='a'); el.classList.toggle('no',choice[id]==='r'); if(tg)tg.HapticFeedback.selectionChanged(); count(); }
 function count(){ const a=Object.values(choice).filter(v=>v==='a').length, r=Object.values(choice).filter(v=>v==='r').length; document.getElementById('rvCount').textContent=`выбрано: ${a} · убрать: ${r} · всего: ${data.items.length}`; }
-function decisions(){ return {a:Object.keys(choice).filter(k=>choice[k]==='a'), r:Object.keys(choice).filter(k=>choice[k]==='r')}; }
+function decisions(){
+  const d={a:Object.keys(choice).filter(k=>choice[k]==='a'), r:Object.keys(choice).filter(k=>choice[k]==='r')};
+  if(Object.keys(edits).length) d.e=edits;            // {id:{b,n,p,s,u}} only changed fields
+  if(titleEdit) d.title=titleEdit;                     // {t,s}
+  return d;
+}
+const F={b:'fb',n:'fn',p:'fp',s:'fs',u:'fu'};
+function openItem(id){ editing=data.items.find(x=>x.id===id); for(const k in F) document.getElementById(F[k]).value=editing[k]||''; document.getElementById('itemSheet').classList.add('on'); }
+function saveItem(){
+  const ch={}; for(const k in F){ const v=document.getElementById(F[k]).value.trim(); if(v!==(editing[k]||'')){ ch[k]=v; editing[k]=v; } }
+  if(Object.keys(ch).length){ edits[editing.id]={...(edits[editing.id]||{}),...ch}; if(!choice[editing.id]) choice[editing.id]='a'; }
+  document.getElementById('itemSheet').classList.remove('on'); const keep=choice; renderReview(); choice=keep;
+  for(const id in choice){ const el=document.getElementById('i_'+id); if(el){ el.classList.toggle('ok',choice[id]==='a'); el.classList.toggle('no',choice[id]==='r'); } } count();
+}
+function openTitle(){ document.getElementById('ft').value=data.title||''; document.getElementById('fsub').value=data.sub||''; document.getElementById('titleSheet').classList.add('on'); }
+function saveTitle(){ data.title=document.getElementById('ft').value.trim(); data.sub=document.getElementById('fsub').value.trim(); titleEdit={t:data.title,s:data.sub};
+  document.getElementById('rvTitle').textContent=data.title; document.getElementById('rvSub').textContent=data.sub; document.getElementById('titleSheet').classList.remove('on'); }
 function openEdit(){ document.getElementById('edit').classList.add('on'); }
 function sendEdit(){ send({t:'edit',run:data.run,...decisions(),text:document.getElementById('editText').value.trim()}); }
 function cont(){
