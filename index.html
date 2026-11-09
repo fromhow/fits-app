@@ -19,6 +19,14 @@ h1{font:800 30px/1.05 Inter,-apple-system,sans-serif;letter-spacing:-.8px;text-t
 .hist{margin-top:22px;display:grid;gap:10px}
 .hist div{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
 .hist small{color:var(--muted)}
+.nowcard{margin-top:22px;background:var(--ink);color:var(--bg);border-radius:18px;padding:16px 18px}
+.nowcard .st{font-size:13px;opacity:.7;text-transform:uppercase;letter-spacing:1px}
+.nowcard b{display:block;font:800 22px/1.15 Inter,-apple-system,sans-serif;margin:6px 0}
+.nowcard .pr{font-size:14px;opacity:.85}
+.nowcard button{margin-top:12px;width:100%;border:0;border-radius:12px;padding:12px 0;background:var(--bg);color:var(--ink);font-family:inherit;font-weight:700;font-size:15px}
+.hist div{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.banner{display:none;margin-top:12px;background:var(--card);border:1px dashed var(--line);border-radius:12px;padding:10px 12px;font-size:14px}
+.back{border:0;background:transparent;color:var(--muted);font:inherit;margin-top:8px;padding:0}
 label{display:block;font-weight:600;margin:20px 0 8px}
 textarea{width:100%;min-height:110px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:14px;padding:12px;font:inherit;resize:vertical}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
@@ -60,7 +68,9 @@ textarea{width:100%;min-height:110px;border:1px solid var(--line);background:var
 <!-- home -->
 <section class="screen" id="home">
   <h1>Fits</h1><div class="sub">подборки для TikTok</div>
+  <div id="now"></div>
   <div class="empty" id="homeEmpty"><b>Готов работать</b>Нажми ＋ и напиши, что ищем сегодня</div>
+  <label id="histLabel" style="display:none">История</label>
   <div class="hist" id="hist"></div>
   <button class="fab" onclick="show('new')">＋</button>
 </section>
@@ -85,6 +95,8 @@ textarea{width:100%;min-height:110px;border:1px solid var(--line);background:var
 <section class="screen" id="review">
   <h1><span id="rvTitle"></span><button class="tedit" onclick="openTitle()">✏️</button></h1><div class="sub" id="rvSub"></div>
   <div class="count" id="rvCount"></div>
+  <div class="banner" id="rvBanner"></div>
+  <button class="back" onclick="show('home')">← на главную</button>
   <div id="cats"></div>
   <div class="bar"><button class="ghost" onclick="openEdit()">💬 Правки</button><button class="solid" onclick="cont()">Продолжить →</button></div>
 </section>
@@ -177,12 +189,62 @@ function cont(){
   send({t:'go',run:data.run,...d});
 }
 
-const h = location.hash.slice(1);
-data = h.startsWith('d=') ? decode(h.slice(2)) : null;
-if (data && data.items) { renderReview(); show('review'); }
-else {
-  try{ const hist=(data&&data.hist)||[]; document.getElementById('hist').innerHTML=hist.map(x=>`<div>${esc(x.text)}<br><small>${esc(x.date)}</small></div>`).join(''); }catch(e){}
+// Telegram appends its own launch params to the hash (#d=...&tgWebAppData=...), so read "d" as a parameter.
+function param(name){
+  const m = (location.hash + '&' + location.search.slice(1)).match(new RegExp('(?:^#?|&)' + name + '=([^&]+)'));
+  return m ? m[1] : null;
+}
+const LONG = {category:'c', brand:'b', name:'n', price:'p', store:'s', url:'u', image_url:'img', why:'w'};
+function norm(d){
+  if(!d) return d;
+  d.items = (d.items || d.candidates || []).map(it => {
+    const o = {...it};
+    for(const k in LONG) if(o[LONG[k]] === undefined && o[k] !== undefined) o[LONG[k]] = o[k];
+    if(typeof o.p === 'number') o.p = (o.currency === 'EUR' ? '€' : o.currency === 'GBP' ? '£' : '$') + o.p;
+    o.id = String(o.id ?? Math.random().toString(36).slice(2,8));
+    return o;
+  });
+  return d;
+}
+const STATUS = {searching:'🔎 Ищу вещи', review:'👀 Выбери вещи', building:'🎨 Рисую и собираю слайды', done:'✅ Готово'};
+
+// history: Telegram CloudStorage (follows the user across devices), localStorage as a fallback
+const CS = tg && tg.CloudStorage && tg.isVersionAtLeast && tg.isVersionAtLeast('6.9') ? tg.CloudStorage : null;
+function histGet(cb){ if(CS) CS.getItem('hist',(e,v)=>{ try{cb(JSON.parse(v||'[]'))}catch(x){cb([])} }); else { try{cb(JSON.parse(localStorage.getItem('hist')||'[]'))}catch(x){cb([])} } }
+function histSet(h){ const v=JSON.stringify(h.slice(0,25)); if(CS) CS.setItem('hist',v,()=>{}); else { try{localStorage.setItem('hist',v)}catch(x){} } }
+function saveRun(d){
+  if(!d || !d.run) return;
+  histGet(h => {
+    const e = {run:d.run, title:d.title||'Подборка', status:d.status||'review', n:(d.items||[]).length, date:d.date||new Date().toLocaleDateString('ru-RU')};
+    h = [e, ...h.filter(x => x.run !== d.run)]; histSet(h); renderHist(h);
+  });
+}
+function renderHist(h){
+  document.getElementById('histLabel').style.display = h.length ? 'block' : 'none';
+  document.getElementById('hist').innerHTML = h.map(x => `<div><span>${esc(x.title)}<br><small>${esc(x.date)} · ${x.n} вещей</small></span><small>${STATUS[x.status]||''}</small></div>`).join('');
+  if(h.length || data) document.getElementById('homeEmpty').style.display = 'none';
+}
+function renderNow(){
+  if(!data) return;
+  const st = data.status || 'review';
+  document.getElementById('now').innerHTML = `<div class="nowcard"><div class="st">${STATUS[st]||''}</div><b>${esc(data.title||'Подборка')}</b>
+    <div class="pr">${esc(data.progress || (data.items.length ? data.items.length + ' вещей на выбор' : 'ещё ищу…'))}</div>
+    ${data.items.length ? `<button onclick="show('review')">${st==='searching' ? 'Смотреть, что уже нашёл' : 'Смотреть и выбирать'} →</button>` : ''}</div>`;
+  document.getElementById('homeEmpty').style.display = 'none';
+}
+
+const raw = param('d');
+data = raw ? norm(decode(raw)) : null;
+if (data && data.items) {
+  renderReview();
+  const b = document.getElementById('rvBanner');
+  if ((data.status || 'review') === 'searching') { b.style.display = 'block'; b.textContent = '🔎 Ещё ищу остальное. Отмечать можно уже сейчас — когда закончу, пришлю новую кнопку.'; }
+  renderNow(); saveRun(data);
+  show(data.items.length && (data.status || 'review') === 'review' ? 'review' : 'home');
+} else {
+  if (raw) document.getElementById('homeEmpty').innerHTML = '<b>Не смог открыть подборку</b>Нажми последнюю кнопку «Открыть Fits» в чате';
   show('home');
 }
+histGet(renderHist);
 </script>
 </body></html>
