@@ -70,6 +70,8 @@ textarea{width:100%;min-height:110px;border:1px solid var(--line);background:var
   <div class="chips" data-group="style"><button class="chip">архив</button><button class="chip">горпкор</button><button class="chip">олд мани</button><button class="chip">микс</button></div>
   <label>Рубрика</label>
   <div class="chips" data-group="format"><button class="chip">подборка</button><button class="chip">собери фит</button><button class="chip">оригинал vs аналог</button><button class="chip">с чем носить</button></div>
+  <label>Оформление</label>
+  <div class="chips" data-group="design"><button class="chip on" data-v="sketch">✏️ скетчбук</button><button class="chip" data-v="mag">📰 журнал</button><button class="chip" data-v="receipt">🧾 чек</button><button class="chip" data-v="poster">🔴 постер</button></div>
   <label>Бюджет</label>
   <div class="chips" data-group="budget"><button class="chip">до $100</button><button class="chip">до $300</button><button class="chip">без лимита</button><button class="chip on">микс</button></div>
   <button class="main solid" onclick="sendRequest()">Отправить</button>
@@ -103,12 +105,12 @@ document.querySelectorAll('.chips').forEach(g=>g.addEventListener('click',e=>{
   if(!e.target.classList.contains('chip'))return;
   g.querySelectorAll('.chip').forEach(c=>c.classList.toggle('on',c===e.target&&!c.classList.contains('on')));
 }));
-function picked(group){ const c=document.querySelector(`[data-group="${group}"] .chip.on`); return c?c.textContent:''; }
+function picked(group){ const c=document.querySelector(`[data-group="${group}"] .chip.on`); return c?(c.dataset.v||c.textContent):''; }
 
 function sendRequest(){
   const text=document.getElementById('req').value.trim();
   if(!text){ document.getElementById('req').focus(); return; }
-  send({t:'req',text,style:picked('style'),format:picked('format'),budget:picked('budget')});
+  send({t:'req',text,style:picked('style'),format:picked('format'),budget:picked('budget'),design:picked('design')||'sketch'});
 }
 
 function esc(s){ return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
