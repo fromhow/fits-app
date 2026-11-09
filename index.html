@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="ru"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Fits</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+:root{--bg:#f4f2ee;--card:#fff;--ink:#141414;--muted:#8a8780;--line:#e4e0d8;--accent:#b3231f;--ok:#1f7a3a;--no:#9a9a9a}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121212;--card:#1c1c1c;--ink:#f1efe9;--muted:#8d8a84;--line:#2b2b2b}}
+:root[data-theme="dark"]{--bg:#121212;--card:#1c1c1c;--ink:#f1efe9;--muted:#8d8a84;--line:#2b2b2b}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{background:var(--bg);color:var(--ink);font:15px/1.4 -apple-system,"SF Pro Text",Inter,Roboto,sans-serif;padding:16px 16px 120px;min-height:100vh}
+h1{font:800 30px/1.05 Inter,-apple-system,sans-serif;letter-spacing:-.8px;text-transform:uppercase}
+.sub{color:var(--muted);margin-top:4px}
+.screen{display:none}.screen.on{display:block}
+.empty{margin-top:56px;text-align:center;color:var(--muted)}
+.empty b{display:block;color:var(--ink);font-size:18px;margin-bottom:6px}
+.fab{position:fixed;right:20px;bottom:28px;width:64px;height:64px;border-radius:50%;background:var(--ink);color:var(--bg);border:0;font-size:34px;line-height:64px;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+.hist{margin-top:22px;display:grid;gap:10px}
+.hist div{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.hist small{color:var(--muted)}
+label{display:block;font-weight:600;margin:20px 0 8px}
+textarea{width:100%;min-height:110px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:14px;padding:12px;font:inherit;resize:vertical}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:8px 14px;font:inherit}
+.chip.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.cat{margin-top:26px}
+.cat h2{font:800 18px Inter,-apple-system,sans-serif;text-transform:uppercase;letter-spacing:-.2px;display:flex;justify-content:space-between;align-items:baseline}
+.cat h2 small{font:500 13px -apple-system,sans-serif;color:var(--muted);text-transform:none}
+.row{display:flex;gap:10px;overflow-x:auto;padding:10px 2px 4px;scroll-snap-type:x mandatory}
+.item{flex:0 0 72%;max-width:260px;scroll-snap-align:start;background:var(--card);border:2px solid var(--line);border-radius:16px;overflow:hidden;transition:.15s}
+.item.ok{border-color:var(--ok)}.item.no{opacity:.45}
+.ph{aspect-ratio:1;background:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.ph img{width:100%;height:100%;object-fit:contain}
+.ph span{color:#aaa;font-size:13px}
+.meta{padding:10px 12px 0}
+.brand{font-weight:700}.name{color:var(--muted);font-size:13px}
+.price{display:inline-block;margin-top:6px;background:var(--accent);color:#fff;font-weight:800;padding:2px 8px;transform:rotate(-1.5deg)}
+.why{font-size:12.5px;color:var(--muted);margin-top:6px;min-height:34px}
+.store{font-size:12px;margin-top:4px}.store a{color:var(--muted)}
+.btns{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:10px 12px 12px}
+.btns button{border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:10px;padding:9px 0;font-family:inherit;font-weight:600;font-size:14px}
+.item.ok .b-ok{background:var(--ok);color:#fff;border-color:var(--ok)}
+.item.no .b-no{background:var(--no);color:#fff;border-color:var(--no)}
+.bar{position:fixed;left:0;right:0;bottom:0;padding:12px 16px calc(12px + env(safe-area-inset-bottom));background:var(--bg);border-top:1px solid var(--line);display:grid;grid-template-columns:1fr 1.4fr;gap:10px}
+.bar button,.main{border:0;border-radius:14px;padding:15px 0;font-family:inherit;font-weight:700;font-size:16px}
+.ghost{background:var(--card);color:var(--ink);border:1px solid var(--line)!important}
+.solid{background:var(--ink);color:var(--bg)}
+.main{width:100%;margin-top:22px}
+.count{color:var(--muted);font-size:13px;margin-top:6px}
+.sheet{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:flex-end}
+.sheet.on{display:flex}
+.sheet>div{background:var(--bg);width:100%;border-radius:20px 20px 0 0;padding:20px 16px calc(20px + env(safe-area-inset-bottom))}
+</style></head><body>
+
+<!-- home -->
+<section class="screen" id="home">
+  <h1>Fits</h1><div class="sub">подборки для TikTok</div>
+  <div class="empty" id="homeEmpty"><b>Готов работать</b>Нажми ＋ и напиши, что ищем сегодня</div>
+  <div class="hist" id="hist"></div>
+  <button class="fab" onclick="show('new')">＋</button>
+</section>
+
+<!-- new request -->
+<section class="screen" id="new">
+  <h1>Новый запрос</h1><div class="sub">напиши своими словами, я разберусь</div>
+  <label>Что ищем</label>
+  <textarea id="req" placeholder="например: шапки олд мани и с чем их носить"></textarea>
+  <label>Стиль</label>
+  <div class="chips" data-group="style"><button class="chip">архив</button><button class="chip">горпкор</button><button class="chip">олд мани</button><button class="chip">микс</button></div>
+  <label>Рубрика</label>
+  <div class="chips" data-group="format"><button class="chip">подборка</button><button class="chip">собери фит</button><button class="chip">оригинал vs аналог</button><button class="chip">с чем носить</button></div>
+  <label>Бюджет</label>
+  <div class="chips" data-group="budget"><button class="chip">до $100</button><button class="chip">до $300</button><button class="chip">без лимита</button><button class="chip on">микс</button></div>
+  <button class="main solid" onclick="sendRequest()">Отправить</button>
+</section>
+
+<!-- review -->
+<section class="screen" id="review">
+  <h1 id="rvTitle"></h1><div class="sub" id="rvSub"></div>
+  <div class="count" id="rvCount"></div>
+  <div id="cats"></div>
+  <div class="bar"><button class="ghost" onclick="openEdit()">Редактировать</button><button class="solid" onclick="cont()">Продолжить →</button></div>
+</section>
+
+<div class="sheet" id="edit" onclick="if(event.target===this)this.classList.remove('on')"><div>
+  <h1 style="font-size:22px">Что поменять?</h1><div class="sub">отмеченные ✕ вещи я заменю в любом случае</div>
+  <textarea id="editText" style="margin-top:14px" placeholder="например: куртку темнее, джинсы шире, без логотипов"></textarea>
+  <button class="main solid" onclick="sendEdit()">Отправить правки</button>
+</div></div>
+
+<script>
+const tg = window.Telegram && Telegram.WebApp;
+if (tg) { tg.ready(); tg.expand(); document.documentElement.dataset.theme = tg.colorScheme; }
+const CAT = {headwear:'Шапки',scarf:'Шарфы',top:'Верх',outerwear:'Куртки',bottoms:'Низ',footwear:'Обувь',bag:'Сумки',accessory:'Аксессуары'};
+let data = null, choice = {};
+
+function decode(h){ try{ const b=h.replace(/-/g,'+').replace(/_/g,'/'); return JSON.parse(decodeURIComponent(escape(atob(b)))); }catch(e){ return null; } }
+function show(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('on',s.id===id)); window.scrollTo(0,0); }
+function send(obj){ const s=JSON.stringify(obj); if(tg && tg.sendData){ tg.sendData(s); } else { alert('Отправлено боту:\n'+s); } }
+
+document.querySelectorAll('.chips').forEach(g=>g.addEventListener('click',e=>{
+  if(!e.target.classList.contains('chip'))return;
+  g.querySelectorAll('.chip').forEach(c=>c.classList.toggle('on',c===e.target&&!c.classList.contains('on')));
+}));
+function picked(group){ const c=document.querySelector(`[data-group="${group}"] .chip.on`); return c?c.textContent:''; }
+
+function sendRequest(){
+  const text=document.getElementById('req').value.trim();
+  if(!text){ document.getElementById('req').focus(); return; }
+  send({t:'req',text,style:picked('style'),format:picked('format'),budget:picked('budget')});
+}
+
+function esc(s){ return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function renderReview(){
+  document.getElementById('rvTitle').textContent = data.title || 'Подборка';
+  document.getElementById('rvSub').textContent = data.sub || '';
+  const groups = {};
+  data.items.forEach(it=>{ (groups[it.c]=groups[it.c]||[]).push(it); });
+  document.getElementById('cats').innerHTML = Object.entries(groups).map(([c,items])=>`
+    <div class="cat"><h2>${esc(CAT[c]||c)}<small>${items.length} на выбор</small></h2><div class="row">
+    ${items.map(it=>`<div class="item" id="i_${esc(it.id)}">
+      <div class="ph">${it.img?`<img src="${esc(it.img)}" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('span'),{textContent:'фото по ссылке'}))">`:'<span>фото по ссылке</span>'}</div>
+      <div class="meta"><div class="brand">${esc(it.b)}</div><div class="name">${esc(it.n)}</div>
+      <span class="price">${esc(it.p)}</span><div class="why">${esc(it.w)}</div>
+      <div class="store">${it.u?`<a href="${esc(it.u)}" onclick="tg&&tg.openLink(this.href);return !tg">${esc(it.s)} ↗</a>`:esc(it.s)}</div></div>
+      <div class="btns"><button class="b-ok" onclick="mark('${esc(it.id)}','a')">✓ Беру</button><button class="b-no" onclick="mark('${esc(it.id)}','r')">✕ Нет</button></div>
+    </div>`).join('')}</div></div>`).join('');
+  count();
+}
+function mark(id,v){ choice[id]=choice[id]===v?undefined:v; const el=document.getElementById('i_'+id); el.classList.toggle('ok',choice[id]==='a'); el.classList.toggle('no',choice[id]==='r'); if(tg)tg.HapticFeedback.selectionChanged(); count(); }
+function count(){ const a=Object.values(choice).filter(v=>v==='a').length, r=Object.values(choice).filter(v=>v==='r').length; document.getElementById('rvCount').textContent=`выбрано: ${a} · убрать: ${r} · всего: ${data.items.length}`; }
+function decisions(){ return {a:Object.keys(choice).filter(k=>choice[k]==='a'), r:Object.keys(choice).filter(k=>choice[k]==='r')}; }
+function openEdit(){ document.getElementById('edit').classList.add('on'); }
+function sendEdit(){ send({t:'edit',run:data.run,...decisions(),text:document.getElementById('editText').value.trim()}); }
+function cont(){
+  const d=decisions();
+  if(!d.a.length){ (tg?tg.showAlert.bind(tg):alert)('Отметь хотя бы одну вещь ✓'); return; }
+  send({t:'go',run:data.run,...d});
+}
+
+const h = location.hash.slice(1);
+data = h.startsWith('d=') ? decode(h.slice(2)) : null;
+if (data && data.items) { renderReview(); show('review'); }
+else {
+  try{ const hist=(data&&data.hist)||[]; document.getElementById('hist').innerHTML=hist.map(x=>`<div>${esc(x.text)}<br><small>${esc(x.date)}</small></div>`).join(''); }catch(e){}
+  show('home');
+}
+</script>
+</body></html>
