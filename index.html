@@ -200,7 +200,7 @@ function norm(d){
   d.items = (d.items || d.candidates || []).map(it => {
     const o = {...it};
     for(const k in LONG) if(o[LONG[k]] === undefined && o[k] !== undefined) o[LONG[k]] = o[k];
-    if(typeof o.p === 'number') o.p = (o.currency === 'EUR' ? '€' : o.currency === 'GBP' ? '£' : '$') + o.p;
+    if(typeof o.p === 'number') o.p = o.currency === 'RUB' ? o.p.toLocaleString('ru-RU') + ' ₽' : (o.currency === 'EUR' ? '€' : o.currency === 'GBP' ? '£' : '$') + o.p;
     o.id = String(o.id ?? Math.random().toString(36).slice(2,8));
     return o;
   });
