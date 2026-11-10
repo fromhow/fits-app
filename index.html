@@ -162,7 +162,7 @@ function renderReview(){
     </div>`).join('')}</div></div>`).join('');
   count();
 }
-function mark(id,v){ choice[id]=choice[id]===v?undefined:v; const el=document.getElementById('i_'+id); el.classList.toggle('ok',choice[id]==='a'); el.classList.toggle('no',choice[id]==='r'); if(tg)tg.HapticFeedback.selectionChanged(); count(); }
+function mark(id,v){ choice[id]=choice[id]===v?undefined:v; const el=document.getElementById('i_'+id); el.classList.toggle('ok',choice[id]==='a'); el.classList.toggle('no',choice[id]==='r'); if(tg)tg.HapticFeedback.selectionChanged(); count(); storeRun(); }
 function count(){ const a=Object.values(choice).filter(v=>v==='a').length, r=Object.values(choice).filter(v=>v==='r').length; document.getElementById('rvCount').textContent=`выбрано: ${a} · убрать: ${r} · всего: ${data.items.length}`; }
 function decisions(){
   const d={a:Object.keys(choice).filter(k=>choice[k]==='a'), r:Object.keys(choice).filter(k=>choice[k]==='r')};
@@ -176,14 +176,14 @@ function saveItem(){
   const ch={}; for(const k in F){ const v=document.getElementById(F[k]).value.trim(); if(v!==(editing[k]||'')){ ch[k]=v; editing[k]=v; } }
   if(Object.keys(ch).length){ edits[editing.id]={...(edits[editing.id]||{}),...ch}; if(!choice[editing.id]) choice[editing.id]='a'; }
   document.getElementById('itemSheet').classList.remove('on'); const keep=choice; renderReview(); choice=keep;
-  for(const id in choice){ const el=document.getElementById('i_'+id); if(el){ el.classList.toggle('ok',choice[id]==='a'); el.classList.toggle('no',choice[id]==='r'); } } count();
+  for(const id in choice){ const el=document.getElementById('i_'+id); if(el){ el.classList.toggle('ok',choice[id]==='a'); el.classList.toggle('no',choice[id]==='r'); } } count(); storeRun();
 }
 function openTitle(){ document.getElementById('ft').value=data.title||''; document.getElementById('fsub').value=data.sub||''; document.getElementById('titleSheet').classList.add('on'); }
 function saveTitle(){ data.title=document.getElementById('ft').value.trim(); data.sub=document.getElementById('fsub').value.trim(); titleEdit={t:data.title,s:data.sub};
-  document.getElementById('rvTitle').textContent=data.title; document.getElementById('rvSub').textContent=data.sub; document.getElementById('titleSheet').classList.remove('on'); }
+  document.getElementById('rvTitle').textContent=data.title; document.getElementById('rvSub').textContent=data.sub; document.getElementById('titleSheet').classList.remove('on'); storeRun(); }
 function openEdit(){ document.getElementById('edit').classList.add('on'); }
 function sendEdit(){ send({t:'edit',run:data.run,...decisions(),text:document.getElementById('editText').value.trim()}); }
-function cont(){
+function cont(){ storeRun();
   const d=decisions();
   if(!d.a.length){ (tg?tg.showAlert.bind(tg):alert)('Отметь хотя бы одну вещь ✓'); return; }
   send({t:'go',run:data.run,...d});
@@ -210,8 +210,35 @@ const STATUS = {searching:'🔎 Ищу вещи', review:'👀 Выбери ве
 
 // history: Telegram CloudStorage (follows the user across devices), localStorage as a fallback
 const CS = tg && tg.CloudStorage && tg.isVersionAtLeast && tg.isVersionAtLeast('6.9') ? tg.CloudStorage : null;
-function histGet(cb){ if(CS) CS.getItem('hist',(e,v)=>{ try{cb(JSON.parse(v||'[]'))}catch(x){cb([])} }); else { try{cb(JSON.parse(localStorage.getItem('hist')||'[]'))}catch(x){cb([])} } }
-function histSet(h){ const v=JSON.stringify(h.slice(0,25)); if(CS) CS.setItem('hist',v,()=>{}); else { try{localStorage.setItem('hist',v)}catch(x){} } }
+function kvGet(k,cb){ if(CS) CS.getItem(k,(e,v)=>cb(v||'')); else { let v=''; try{v=localStorage.getItem(k)||''}catch(x){} cb(v); } }
+function kvSet(k,v){ if(CS) CS.setItem(k,v,()=>{}); else { try{localStorage.setItem(k,v)}catch(x){} } }
+function kvDel(k){ if(CS) CS.removeItem(k,()=>{}); else { try{localStorage.removeItem(k)}catch(x){} } }
+function histGet(cb){ kvGet('hist', v => { try{cb(JSON.parse(v||'[]'))}catch(x){cb([])} }); }
+function histSet(h){ h.slice(25).forEach(x => kvDel(runKey(x.run))); kvSet('hist', JSON.stringify(h.slice(0,25))); }
+const runKey = r => 'r_' + String(r).replace(/[^A-Za-z0-9_-]/g,'_').slice(0,100);
+// full run (items + my marks + my edits) so a past run can be opened and changed. CloudStorage value limit is 4096 chars.
+function storeRun(){
+  if(!data || !data.run) return;
+  const pack = it => { const o={id:it.id,c:it.c,b:it.b,n:it.n,p:it.p,s:it.s,u:it.u,img:it.img,w:it.w}; return o; };
+  let d = {run:data.run,title:data.title,sub:data.sub,status:data.status,design:data.design,items:data.items.map(pack),choice,edits,titleEdit};
+  let v = JSON.stringify(d);
+  if (v.length > 4000) { d.items.forEach(i => delete i.w); v = JSON.stringify(d); }
+  if (v.length > 4000) { d.items.forEach(i => delete i.u); v = JSON.stringify(d); }
+  if (v.length > 4000) { d.items = d.items.slice(0, 12); v = JSON.stringify(d); }
+  kvSet(runKey(data.run), v);
+}
+function openRun(run){
+  kvGet(runKey(run), v => {
+    let d=null; try{ d=JSON.parse(v) }catch(x){}
+    if(!d){ (tg?tg.showAlert.bind(tg):alert)('Этот выпуск не сохранился на этом устройстве'); return; }
+    data = norm(d); choice = d.choice || {}; edits = d.edits || {}; titleEdit = d.titleEdit || null;
+    renderReview(); restoreMarks();
+    const b = document.getElementById('rvBanner'); b.style.display='block';
+    b.textContent = '🗂 Выпуск из истории. Можно поменять отметки и тексты и нажать «Продолжить» — пересоберу слайды.';
+    show('review');
+  });
+}
+function restoreMarks(){ for(const id in choice){ const el=document.getElementById('i_'+id); if(el){ el.classList.toggle('ok',choice[id]==='a'); el.classList.toggle('no',choice[id]==='r'); } } count(); }
 function saveRun(d){
   if(!d || !d.run) return;
   histGet(h => {
@@ -221,7 +248,7 @@ function saveRun(d){
 }
 function renderHist(h){
   document.getElementById('histLabel').style.display = h.length ? 'block' : 'none';
-  document.getElementById('hist').innerHTML = h.map(x => `<div><span>${esc(x.title)}<br><small>${esc(x.date)} · ${x.n} вещей</small></span><small>${STATUS[x.status]||''}</small></div>`).join('');
+  document.getElementById('hist').innerHTML = h.map(x => `<div onclick="openRun('${esc(x.run)}')" style="cursor:pointer"><span>${esc(x.title)}<br><small>${esc(x.date)} · ${x.n} вещей</small></span><small>${STATUS[x.status]||''} ›</small></div>`).join('');
   if(h.length || data) document.getElementById('homeEmpty').style.display = 'none';
 }
 function renderNow(){
@@ -240,6 +267,7 @@ if (data && data.items) {
   const b = document.getElementById('rvBanner');
   if ((data.status || 'review') === 'searching') { b.style.display = 'block'; b.textContent = '🔎 Ещё ищу остальное. Отмечать можно уже сейчас — когда закончу, пришлю новую кнопку.'; }
   renderNow(); saveRun(data);
+  kvGet(runKey(data.run), v => { try{ const old=JSON.parse(v); if(old){ choice={...(old.choice||{}),...choice}; edits={...(old.edits||{}),...edits}; titleEdit=titleEdit||old.titleEdit||null; restoreMarks(); } }catch(x){} storeRun(); });
   show(data.items.length && (data.status || 'review') === 'review' ? 'review' : 'home');
 } else {
   if (raw) document.getElementById('homeEmpty').innerHTML = '<b>Не смог открыть подборку</b>Нажми последнюю кнопку «Открыть Fits» в чате';
