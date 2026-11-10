@@ -9,13 +9,20 @@
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121212;--card:#1c1c1c;--ink:#f1efe9;--muted:#8d8a84;--line:#2b2b2b}}
 :root[data-theme="dark"]{--bg:#121212;--card:#1c1c1c;--ink:#f1efe9;--muted:#8d8a84;--line:#2b2b2b}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-body{background:var(--bg);color:var(--ink);font:15px/1.4 -apple-system,"SF Pro Text",Inter,Roboto,sans-serif;padding:16px 16px 120px;min-height:100vh}
+body{background:var(--bg);color:var(--ink);font:15px/1.4 -apple-system,"SF Pro Text",Inter,Roboto,sans-serif;padding:16px 16px 150px;min-height:100vh}
+.tabs{position:fixed;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(3,1fr);background:var(--card);border-top:1px solid var(--line);padding:6px 6px calc(6px + env(safe-area-inset-bottom));z-index:5}
+.tabs button{border:0;background:transparent;color:var(--muted);font-family:inherit;font-size:12px;font-weight:600;padding:6px 0;border-radius:12px;display:flex;flex-direction:column;align-items:center;gap:2px}
+.tabs button span{font-size:22px;line-height:1}
+.tabs button.on{color:var(--ink);background:var(--bg)}
+.tabs.hide{display:none}
+.timerow{display:flex;gap:8px;flex-wrap:wrap}.timerow input{width:96px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:12px;padding:10px;font:inherit}
+.note{margin-top:12px;font-size:13px;color:var(--muted)}
 h1{font:800 30px/1.05 Inter,-apple-system,sans-serif;letter-spacing:-.8px;text-transform:uppercase}
 .sub{color:var(--muted);margin-top:4px}
 .screen{display:none}.screen.on{display:block}
 .empty{margin-top:56px;text-align:center;color:var(--muted)}
 .empty b{display:block;color:var(--ink);font-size:18px;margin-bottom:6px}
-.fab{position:fixed;right:20px;bottom:28px;width:64px;height:64px;border-radius:50%;background:var(--ink);color:var(--bg);border:0;font-size:34px;line-height:64px;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+.fab{position:fixed;right:20px;bottom:96px;width:64px;height:64px;border-radius:50%;background:var(--ink);color:var(--bg);border:0;font-size:34px;line-height:64px;box-shadow:0 6px 20px rgba(0,0,0,.25)}
 .hist{margin-top:22px;display:grid;gap:10px}
 .hist div{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
 .hist small{color:var(--muted)}
@@ -91,6 +98,33 @@ textarea{width:100%;min-height:110px;border:1px solid var(--line);background:var
   <button class="main solid" onclick="sendRequest()">Отправить</button>
 </section>
 
+<!-- channel -->
+<section class="screen" id="channel">
+  <h1>Пост в канал</h1><div class="sub">найду, что нового в мире шмоток, и предложу 3 варианта</div>
+  <label>О чём посты</label>
+  <textarea id="chText" placeholder="например: новые коллабы и релизы, архивные находки недели, что носить на этой неделе"></textarea>
+  <label>Формат</label>
+  <div class="chips" data-group="chFormat"><button class="chip on" data-v="news">📰 новости</button><button class="chip" data-v="pick">🧥 подборка</button><button class="chip" data-v="fact">💡 факт/история бренда</button><button class="chip" data-v="mix">🎲 микс</button></div>
+  <label>Сколько постов в день и когда</label>
+  <div class="chips" data-group="chCount"><button class="chip" data-v="1">1</button><button class="chip" data-v="2">2</button><button class="chip on" data-v="3">3</button></div>
+  <div class="timerow" style="margin-top:10px"><input type="time" id="t1" value="12:00"><input type="time" id="t2" value="16:00"><input type="time" id="t3" value="21:00"></div>
+  <button class="main solid" onclick="sendChannel()">Предложить 3 варианта</button>
+  <div class="note">Варианты придут в чат с ботом. Выбранные посты бот опубликует в канале в указанное время (нужно один раз добавить бота админом канала).</div>
+</section>
+
+<!-- ads -->
+<section class="screen" id="ads">
+  <h1>Реклама</h1><div class="sub">рекламный пост или видео под заказчика</div>
+  <label>Идея</label>
+  <textarea id="adText" placeholder="что рекламируем, для кого, какой вайб, что обязательно показать"></textarea>
+  <label>Заказчик / бренд</label>
+  <textarea id="adClient" style="min-height:52px" placeholder="название, ссылка, @ник"></textarea>
+  <label>Что сделать</label>
+  <div class="chips" data-group="adFormat"><button class="chip on" data-v="post">🖼 пост</button><button class="chip" data-v="video">🎬 видео / Live</button><button class="chip" data-v="both">оба</button></div>
+  <button class="main solid" onclick="sendAd()">Собрать</button>
+  <div class="note">После отправки пришли в чат с ботом фото человека и вещей, которые нужно показать, — я нарисую персонажа в них и соберу футаж.</div>
+</section>
+
 <!-- review -->
 <section class="screen" id="review">
   <h1><span id="rvTitle"></span><button class="tedit" onclick="openTitle()">✏️</button></h1><div class="sub" id="rvSub"></div>
@@ -100,6 +134,12 @@ textarea{width:100%;min-height:110px;border:1px solid var(--line);background:var
   <div id="cats"></div>
   <div class="bar"><button class="ghost" onclick="openEdit()">💬 Правки</button><button class="solid" onclick="cont()">Продолжить →</button></div>
 </section>
+
+<nav class="tabs" id="tabs">
+  <button data-tab="home" class="on" onclick="tab('home')"><span>🎬</span>TikTok</button>
+  <button data-tab="channel" onclick="tab('channel')"><span>📣</span>Канал</button>
+  <button data-tab="ads" onclick="tab('ads')"><span>💸</span>Реклама</button>
+</nav>
 
 <div class="sheet" id="edit" onclick="if(event.target===this)this.classList.remove('on')"><div>
   <h1 style="font-size:22px">Что поменять?</h1><div class="sub">отмеченные ✕ вещи я заменю в любом случае</div>
@@ -147,7 +187,9 @@ let data = null, choice = {}, edits = {}, titleEdit = null, editing = null;
 function decode(h){ try{ const b=h.replace(/-/g,'+').replace(/_/g,'/'); return JSON.parse(decodeURIComponent(escape(atob(b)))); }catch(e){ return null; } }
 function show(id){
   document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('on',s.id===id)); window.scrollTo(0,0);
-  if(tg && tg.BackButton){ id==='home' ? tg.BackButton.hide() : tg.BackButton.show(); }
+  const main=['home','channel','ads'].includes(id); document.getElementById('tabs').classList.toggle('hide',!main);
+  document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('on',b.dataset.tab===id));
+  if(tg && tg.BackButton){ ['home','channel','ads'].includes(id) ? tg.BackButton.hide() : tg.BackButton.show(); }
   if(typeof syncSwipes==='function') syncSwipes();
 }
 function send(obj){ const s=JSON.stringify(obj); if(tg && tg.sendData){ tg.sendData(s); } else { alert('Отправлено боту:\n'+s); } }
@@ -158,6 +200,18 @@ document.querySelectorAll('.chips').forEach(g=>g.addEventListener('click',e=>{
 }));
 function picked(group){ const c=document.querySelector(`[data-group="${group}"] .chip.on`); return c?(c.dataset.v||c.textContent):''; }
 
+function tab(id){ show(id); if(tg) tg.HapticFeedback.selectionChanged(); }
+function sendChannel(){
+  const text=document.getElementById('chText').value.trim();
+  if(!text){ document.getElementById('chText').focus(); return; }
+  const n=+picked('chCount')||3; const times=['t1','t2','t3'].slice(0,n).map(i=>document.getElementById(i).value).filter(Boolean);
+  send({t:'channel',text,format:picked('chFormat'),n,times});
+}
+function sendAd(){
+  const text=document.getElementById('adText').value.trim();
+  if(!text){ document.getElementById('adText').focus(); return; }
+  send({t:'ad',text,client:document.getElementById('adClient').value.trim(),format:picked('adFormat')});
+}
 function sendRequest(){
   const text=document.getElementById('req').value.trim();
   if(!text){ document.getElementById('req').focus(); return; }
